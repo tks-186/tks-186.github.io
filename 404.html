@@ -5,49 +5,12 @@
   <meta charset="UTF-8">
   <title>TKS</title>
   <style>
-    body{
-      background-color:#f0f8ff;
-      color:#333;
-      font-family:Arial,sans-serif;
-      margin:50px;
-      text-align:center;
-    }
-    select{
-      font-size:1em;
-      margin:5px;
-      padding:5px;
-      border-radius:5px;
-    }
-    .buttonContainer{margin-top:10px;}
-    #showBtn,#downloadBtn{
-      background-color:#8d60a2;
-      font-size:1.1em;
-      padding:10px 20px;
-      border:2px solid #333;
-      border-radius:10px;
-      cursor:pointer;
-      margin:0 auto;
-      display:block;
-      transition:all .3s ease;
-      text-transform:uppercase;
-      font-weight:bold;
-    }
-    #showBtn:hover,#downloadBtn:hover{
-      background-color:#e96868;
-      color:#fff;
-      box-shadow:0 0 10px rgba(0,0,0,.3);
-    }
-    #verseDisplay{
-      margin-top:20px;
-      font-size:1.1em;
-      padding:20px;
-      border:2px solid #333;
-      display:inline-block;
-      text-align:left;
-      width:60%;
-      background-color:#fff;
-      box-shadow:2px 2px 8px rgba(0,0,0,.1);
-    }
+    body{background-color:#f0f8ff;color:#333;font-family:Arial,sans-serif;margin:50px;text-align:center}
+    select{font-size:1em;margin:5px;padding:5px;border-radius:5px}
+    .buttonContainer{margin-top:10px}
+    #showBtn,#downloadBtn{background-color:#8d60a2;font-size:1.1em;padding:10px 20px;border:2px solid #333;border-radius:10px;cursor:pointer;margin:0 auto;display:block;transition:.3s;text-transform:uppercase;font-weight:bold}
+    #showBtn:hover,#downloadBtn:hover{background-color:#e96868;color:#fff;box-shadow:0 0 10px rgba(0,0,0,.3)}
+    #verseDisplay{margin-top:20px;font-size:1.1em;padding:20px;border:2px solid #333;display:inline-block;text-align:left;width:60%;background:#fff;box-shadow:2px 2px 8px rgba(0,0,0,.1)}
   </style>
 </head>
 <body>
@@ -77,200 +40,171 @@
     <button id="downloadBtn">Download Passage</button>
   </div>
 
-  <img id="symbol"
-  src="symbol.png"
-  alt="Symbol"
-  style="display:block;margin:20px auto;width:120px;height:auto;">
-  <a href="https://github.com/platon-krose/TKS" id="sourceLink" style="display:block;margin-top:40px;">platon-krose</a>
+  <img id="symbol" src="symbol.png" alt="Symbol"
+       style="display:block;margin:20px auto;width:120px;height:auto">
+  <a href="https://github.com/platon-krose/TKS" id="sourceLink"
+     style="display:block;margin-top:40px">platon‑krose</a>
 
   <script>
-    const alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' ,\".?-~+*_#";
-    const strands=["ALL","AWM","TRL","LIM","RIT","RLI","TYX","WXY"];
-    const chapters=["ALL",1,2,3,4,5,6,7];
-    const strandSelect=document.getElementById("strandSelect");
-    const chapterSelect=document.getElementById("chapterSelect");
-    const verseSelect=document.getElementById("verseSelect");
-    const displayStyleSelect=document.getElementById("displayStyleSelect");
-    const showBtn=document.getElementById("showBtn");
-    const downloadBtn=document.getElementById("downloadBtn");
-    const verseDisplay=document.getElementById("verseDisplay");
-    let versesData={};
+  /* ---------- constants & elements ---------- */
+  const alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' ,\".?-~+*_#";
+  const strands=["ALL","AWM","TRL","LIM","RIT","RLI","TYX","WXY"];
+  const chapters=["ALL",1,2,3,4,5,6,7];
+  const strandSelect=document.getElementById("strandSelect");
+  const chapterSelect=document.getElementById("chapterSelect");
+  const verseSelect=document.getElementById("verseSelect");
+  const displayStyleSelect=document.getElementById("displayStyleSelect");
+  const showBtn=document.getElementById("showBtn");
+  const downloadBtn=document.getElementById("downloadBtn");
+  const verseDisplay=document.getElementById("verseDisplay");
+  let versesData={};
 
-    fetch("verses.json").then(r=>r.json()).then(data=>{
+  /* ---------- fetch data then deep‑link ---------- */
+  fetch("verses.json").then(r=>{
+    if(!r.ok) throw new Error("verses.json missing");
+    return r.json();
+  }).then(data=>{
     versesData=data;
     populateDropdowns();
 
     const parts=window.location.pathname.split("/").filter(Boolean);
-    const deepStrand=parts[0]&&strands.includes(parts[0])?parts[0]:"LIM";
-    const deepChap =parts[1]&&(parts[1]==="ALL"||chapters.includes(+parts[1]))?parts[1]:"1";
-    let   deepVerse="0";
-    if(parts[2]){
-      if(parts[2]==="ALL") deepVerse="ALL";
-      else{
-        const n=parseInt(parts[2],10);
-        if(!isNaN(n)&&n>0) deepVerse=(n-1).toString();
-      }
+    const s=parts[0];                      /* strand */
+    const c=parts[1];                      /* chapter */
+    const v=parts[2];                      /* verse   */
+
+    strandSelect.value= (s && strands.includes(s)) ? s : "LIM";
+    chapterSelect.value=(c && (c==="ALL"||chapters.includes(+c))) ? c : "1";
+
+    populateVerseSelect();                 /* after chapter is set */
+
+    if(v==="ALL"){ verseSelect.value="ALL"; }
+    else if(v){
+      const num=parseInt(v,10);
+      const optVal=!isNaN(num)&&num>0? (num-1).toString() : "0";
+      verseSelect.value=[...verseSelect.options].some(o=>o.value===optVal)?optVal:"0";
     }
+    enforceStyleRules();
+    showSelection();
+  }).catch(err=>{
+    verseDisplay.textContent="Error loading passages: "+err.message;
+    console.error(err);
+  });
 
-    strandSelect.value=deepStrand;
-    chapterSelect.value=deepChap;
-    populateVerseSelect();      /* now verses exist, repopulate list   */
-    verseSelect.value=deepVerse;
-    enforceStyleRules();        /* keep style dropdown in sync         */
-    showSelection();            /* render the requested passage        */
-  }).catch(console.error);
-
-    function populateDropdowns(){
-      strandSelect.innerHTML="";
-      strands.forEach(s=>strandSelect.appendChild(new Option(s,s)));
-      chapterSelect.innerHTML="";
-      chapters.forEach(c=>chapterSelect.appendChild(new Option(c==="ALL"?"ALL":"Chapter "+c,c)));
-      populateVerseSelect();
-    }
-
-    function populateVerseSelect(){
-      verseSelect.innerHTML="";
-      if(strandSelect.value==="ALL"||chapterSelect.value==="ALL"){
-        verseSelect.appendChild(new Option("ALL","ALL"));
-      }else{
-        const arr=versesData[strandSelect.value]?.["chapter"+chapterSelect.value];
-        if(!arr)return;
+  /* ---------- dropdown helpers ---------- */
+  function populateDropdowns(){
+    strandSelect.innerHTML="";
+    strands.forEach(s=>strandSelect.appendChild(new Option(s,s)));
+    chapterSelect.innerHTML="";
+    chapters.forEach(c=>chapterSelect.appendChild(new Option(c==="ALL"?"ALL":"Chapter "+c,c)));
+    populateVerseSelect();
+  }
+  function populateVerseSelect(){
+    verseSelect.innerHTML="";
+    if(strandSelect.value==="ALL"||chapterSelect.value==="ALL"){
+      verseSelect.appendChild(new Option("ALL","ALL"));
+    }else{
+      const arr=versesData[strandSelect.value]?.["chapter"+chapterSelect.value];
+      if(arr){
         verseSelect.appendChild(new Option("ALL","ALL"));
         for(let i=1;i<arr.length;i++){
           verseSelect.appendChild(new Option("Verse "+i,(i-1).toString()));
         }
       }
-      enforceStyleRules();
     }
+    enforceStyleRules();
+  }
+  function enforceStyleRules(){
+    if(verseSelect.value==="ALL"){
+      ensureOption(displayStyleSelect,"line","Line‑by‑Line");
+    }else{
+      removeOption(displayStyleSelect,"line");
+      displayStyleSelect.value="plaintext";
+    }
+  }
+  function ensureOption(sel,val,txt){
+    if(![...sel.options].some(o=>o.value===val)) sel.insertBefore(new Option(txt,val),sel.firstChild);
+  }
+  function removeOption(sel,val){
+    [...sel.options].forEach((o,i)=>{if(o.value===val)sel.remove(i);});
+  }
 
-    function enforceStyleRules(){
-      if(verseSelect.value==="ALL"){
-        ensureOption(displayStyleSelect,"line","Line‑by‑Line");
+  /* ---------- events ---------- */
+  strandSelect.addEventListener("change",populateVerseSelect);
+  chapterSelect.addEventListener("change",populateVerseSelect);
+  verseSelect.addEventListener("change",enforceStyleRules);
+  showBtn.addEventListener("click",showSelection);
+  downloadBtn.addEventListener("click",downloadCurrent);
+
+  /* ---------- core utils ---------- */
+  const decodeText=n=>{
+    let b=BigInt(n),s="";
+    while(b>0n){s=alphabet[Number(b%64n)]+s;b/=64n;}
+    return s;
+  };
+  function addChapter(strand,chap,v,out){
+    const arr=versesData[strand]?.["chapter"+chap];
+    if(!arr)return;
+    const [pos,brk1,brk2]=arr[0].map(Number);
+    if(v==="ALL"){
+      out.push({strand,chapter:chap,position:pos,break1:brk1,break2:brk2,verses:arr.slice(1).map(decodeText)});
+    }else{
+      const idx=parseInt(v,10)+1;
+      if(idx<arr.length) out.push({strand,chapter:chap,position:pos,break1:brk1,break2:brk2,verses:[decodeText(arr[idx])]});
+    }
+  }
+  function renderPassages(pas,style){
+    let o="";
+    pas.forEach(p=>{
+      o+=`<b>${p.strand} ${p.chapter}</b>\n`;
+      if(style==="line"&&p.verses.length>1){
+        p.verses.forEach((v,i)=>{
+          const n=i+1;
+          o+=n+": "+v+"\n";
+          if(n===p.break1||n===p.break2) o+="-\n";
+        });
       }else{
-        removeOption(displayStyleSelect,"line");
-        displayStyleSelect.value="plaintext";
+        let line="";
+        p.verses.forEach((v,i)=>{
+          if(i>0){
+            line+=(i===p.break1||i===p.break2)?"\n-\n":" ";
+          }
+          line+=v;
+        });
+        o+=line+"\n";
       }
-    }
-
-    function ensureOption(sel,val,txt){
-      if([...sel.options].some(o=>o.value===val))return;
-      sel.insertBefore(new Option(txt,val),sel.firstChild);
-    }
-
-    function removeOption(sel,val){
-      [...sel.options].forEach((o,i)=>{if(o.value===val)sel.remove(i);});
-    }
-
-    strandSelect.addEventListener("change",populateVerseSelect);
-    chapterSelect.addEventListener("change",populateVerseSelect);
-    verseSelect.addEventListener("change",enforceStyleRules);
-    showBtn.addEventListener("click",showSelection);
-    downloadBtn.addEventListener("click",downloadCurrent);
-
-    function decodeText(num){
-      let n=BigInt(num),s="";
-      while(n>0n){
-        const r=n%64n;
-        s=alphabet.charAt(Number(r))+s;
-        n/=64n;
-      }
-      return s;
-    }
-
-    function addChapter(strand,chap,v,out){
-      const arr=versesData[strand]?.["chapter"+chap];
-      if(!arr)return;
-      const [pos,brk1,brk2]=arr[0].map(Number);
-      if(v==="ALL"){
-        out.push({strand,chapter:chap,position:pos,break1:brk1,break2:brk2,verses:arr.slice(1).map(decodeText)});
-      }else{
-        const idx=parseInt(v,10)+1;
-        if(idx<arr.length){
-          out.push({strand,chapter:chap,position:pos,break1:brk1,break2:brk2,verses:[decodeText(arr[idx])]});
-        }
-      }
-    }
-
-    function renderPassages(pas,style){
-      let o="";
-      pas.forEach(p=>{
-        o+=`<b>${p.strand} ${p.chapter}</b>\n`;
-        if(style==="line"&&p.verses.length>1){
-          p.verses.forEach((v,i)=>{
-            const n=i+1;
-            o+=n+": "+v+"\n";
-            if(n===p.break1||n===p.break2)o+="-\n";
-          });
-        }else{
-          let line="";
-          p.verses.forEach((v,i)=>{
-            if(i>0){
-              if(i===p.break1||i===p.break2)line+="\n-\n";
-              else line+=" ";
-            }
-            line+=v;
-          });
-          o+=line+"\n";
-        }
-        o+="\n";
-      });
-      return o;
-    }
-
-    function showSelection(){
-      let out="";
-      const strandVal=strandSelect.value;
-      const chapVal=chapterSelect.value;
-      const verseVal=verseSelect.value;
-      const style=displayStyleSelect.value;
-      if(strandVal==="ALL"&&chapVal==="ALL"){
-        for(let ch=1;ch<=7;ch++){
-          let pas=[];
-          strands.forEach(s=>{if(s!=="ALL")addChapter(s,ch,verseVal,pas);});
-          pas.sort((a,b)=>a.position-b.position);
-          out+=renderPassages(pas,style);
-        }
-      }else if(strandVal==="ALL"){
-        let pas=[];
-        strands.forEach(s=>{if(s!=="ALL")addChapter(s,parseInt(chapVal,10),verseVal,pas);});
+      o+="\n";
+    });
+    return o;
+  }
+  function showSelection(){
+    let out="",s=strandSelect.value,c=chapterSelect.value,v=verseSelect.value,style=displayStyleSelect.value;
+    if(s==="ALL"&&c==="ALL"){
+      for(let ch=1;ch<=7;ch++){
+        let pas=[]; strands.forEach(st=>{if(st!=="ALL")addChapter(st,ch,v,pas);});
         pas.sort((a,b)=>a.position-b.position);
         out+=renderPassages(pas,style);
-      }else if(chapVal==="ALL"){
-        let pas=[];
-        for(let ch=1;ch<=7;ch++)addChapter(strandVal,ch,verseVal,pas);
-        out+=renderPassages(pas,style);
-      }else{
-        let pas=[];
-        addChapter(strandVal,parseInt(chapVal,10),verseVal,pas);
-        out+=renderPassages(pas,style);
       }
-      verseDisplay.innerHTML=out.replace(/\n/g,"<br>");
+    }else if(s==="ALL"){
+      let pas=[]; strands.forEach(st=>{if(st!=="ALL")addChapter(st,parseInt(c,10),v,pas);});
+      pas.sort((a,b)=>a.position-b.position);
+      out+=renderPassages(pas,style);
+    }else if(c==="ALL"){
+      let pas=[]; for(let ch=1;ch<=7;ch++)addChapter(s,ch,v,pas);
+      out+=renderPassages(pas,style);
+    }else{
+      let pas=[]; addChapter(s,parseInt(c,10),v,pas);
+      out+=renderPassages(pas,style);
     }
-
-    function downloadCurrent(){
-      const txt=verseDisplay.innerText;
-      const url=URL.createObjectURL(new Blob([txt],{type:"text/plain"}));
-      const a=document.createElement("a");
-      a.href=url;
-      a.download="passage.txt";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-
-    document.addEventListener("DOMContentLoaded",()=>{
-      const p=window.location.pathname.split("/").filter(Boolean);
-      if(p[0]&&strands.includes(p[0]))strandSelect.value=p[0];
-      if(p[1]&&(p[1]==="ALL"||chapters.includes(+p[1])))chapterSelect.value=p[1];
-      if(p[2]){
-        const n=parseInt(p[2],10);
-        if(!isNaN(n)&&n>0)verseSelect.value=(n-1).toString();
-        else if(p[2]==="ALL")verseSelect.value="ALL";
-      }
-      populateVerseSelect();
-      showSelection();
-    });
+    verseDisplay.innerHTML=out.replace(/\n/g,"<br>");
+  }
+  function downloadCurrent(){
+    const blob=new Blob([verseDisplay.innerText],{type:"text/plain"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url; a.download="passage.txt";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
   </script>
 </body>
 </html>
