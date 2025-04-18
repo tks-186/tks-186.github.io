@@ -96,15 +96,29 @@
     const verseDisplay=document.getElementById("verseDisplay");
     let versesData={};
 
-    fetch("verses.json").then(r=>r.json()).then(d=>{
-      versesData=d;
-      populateDropdowns();
-      strandSelect.value="LIM";
-      chapterSelect.value="1";
-      populateVerseSelect();
-      verseSelect.value="0";
-      showSelection();
-    }).catch(console.error);
+    fetch("verses.json").then(r=>r.json()).then(data=>{
+    versesData=data;
+    populateDropdowns();
+
+    const parts=window.location.pathname.split("/").filter(Boolean);
+    const deepStrand=parts[0]&&strands.includes(parts[0])?parts[0]:"LIM";
+    const deepChap =parts[1]&&(parts[1]==="ALL"||chapters.includes(+parts[1]))?parts[1]:"1";
+    let   deepVerse="0";
+    if(parts[2]){
+      if(parts[2]==="ALL") deepVerse="ALL";
+      else{
+        const n=parseInt(parts[2],10);
+        if(!isNaN(n)&&n>0) deepVerse=(n-1).toString();
+      }
+    }
+
+    strandSelect.value=deepStrand;
+    chapterSelect.value=deepChap;
+    populateVerseSelect();      /* now verses exist, repopulate list   */
+    verseSelect.value=deepVerse;
+    enforceStyleRules();        /* keep style dropdown in sync         */
+    showSelection();            /* render the requested passage        */
+  }).catch(console.error);
 
     function populateDropdowns(){
       strandSelect.innerHTML="";
