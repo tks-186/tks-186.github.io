@@ -206,6 +206,10 @@
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   }
+  ["title","symbol"].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener("click",()=>window.location.href="/");
+});
   </script>
 </body>
 </html>
